@@ -1,16 +1,19 @@
 Package: tamodel
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Terrestrial-aquatic Carbon Cycle Model
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Jane", "Doe",
-      email = "jane@example.com",
+      "Ceara", "Talbot",
+      email = "ctalbot@ucdavis.edu",
       role = c("aut", "cre")
     )
   )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Description: This package primarily provides the code for a coupled terrestrial-aquatic
+  process model for simulating coupled carbon and water budgets. It also contains
+  a number of helpful functions for formatting inputs and summarizing model outputs.
+License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
+Imports: 
+    deSolve

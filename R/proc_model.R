@@ -1,3 +1,20 @@
+#' @title proc_model
+#'
+#' @description Process model code for paired terrestrial-aquatic carbon
+#'      and hydrology model
+#'
+#' @param t Current timestep for forcings
+#' @param S Vector of timesteps
+#' @param p Named list of model parameters
+#'
+#' @return A data frame object that contains daily model outputs for a
+#'      single plant functional type,  which can be summarized with  \code{summarize_tam}
+#' @examples
+#' data(sing_watershed)
+#' output_table <- overview_tab(t = toydata, S = ccode, p = year)
+#' @export
+
+
 ####Terrestrial-Aquatic Model####
 
 ### Differential equations; [units]; definition
