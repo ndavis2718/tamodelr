@@ -1,4 +1,19 @@
 ###Functions to calculate leaf phenology
+#' @title leaf_pheno
+#'
+#' @description Calculates leaf phenology forcings (leaf on and leaf off)
+#'
+#' @param temps Vector of mean daily temperature (deg C)
+#' @param ths Growing degree day threshold (deg C)
+#' @param chill Calculate chilling days (set to TRUE)
+#'
+#' @return A data frame object that contains calculated growing degree days
+#'              \code{summarize_tam}
+#' @examples
+#' data(sing_watershed)
+#' output_table <- overview_tab(t = toydata, S = ccode, p = year)
+#' @export
+
 
 #Growing degree day calculations
 #input is temps vector for a single year, ths is the temperature threshold
