@@ -1,6 +1,6 @@
 ### example code for model simulations - using OSBS site from NEON w/ SUGG lake site
 
-setwd("") # set working directory to tamodelr folder
+setwd("/Users/nicodavis/Desktop/R/TERC/tamodelr") # set working directory to tamodelr folder
 
 library(deSolve) # load differential equation solver from library
 
@@ -12,19 +12,27 @@ source("Examples/R/addLeaves.R") # calculate leaf on/ leaf off
 forcings<-read.csv("Examples/Data/OSBS_neonForcings_ex.csv") # read in forcing data
   #there are a bunch of variables from this file that we don't need right now; let's keep only what we need
   site_forcings<-data.frame(cbind(TIMESTAMP=forcings$TIMESTAMP, TA_F=forcings$TA_F, forcings[,106:113]))
- PFTtable<-read.csv("Examples/Data/paramTable.csv")# read in parameter table
-pfts_site<-c("EGNE", "DEBR") # vector of plant functional types at OSBS neon site
+  PFTtable<-read.csv("Examples/Data/paramTable.csv")# read in parameter table
+pfts_site<-c("EGNE") #vector of plant functional types at OSBS neon site
 
 
 #### we need to find and assign the lake-specific parameters for the SUGG neon site
 # Aa = surface area (m^2), Ac = catchment area (m^2), zbar = mean depth (m)
+zbar = 20.06
+Ac = 3.96 * 10^7
+Aa = 730000
+#the lake qualities are encoded in the plant types; every PFT has the same lake depth, SA, etc
+PFTtable[which(PFTtable$pName=="zbar"), 2:8]<-zbar
+PFTtable[which(PFTtable$pName=="Ac"), 2:8]<-Ac
+PFTtable[which(PFTtable$pName=="Aa"), 2:8]<-Aa
+
 
 ### STOP: check forcing data to make sure that there are no negative values (negative temperatures are ok but everything else should be positive)
 
 #1. Model spinup OR input own inital conditions if data exist for site.
-##run equilibrium to get initial conditions
+##run equilibrium to get initial conditions | equilibrium means a linear regression is about 0 for each pool (things arent changing)
 #create a data frame that holds initial conditions for each pft
-initDF<-data.frame(matrix(ncol=19, nrow=length(pfts_site))) #initial conditions setup
+initDF<-data.frame(matrix(ncol=19, nrow=length(pfts_site))) #initial conditions setup. 1 col for each item we track (types of carbon)
 colnames(initDF)<-c("Cw","Cl", "Cs1", "Cs2", "Cs3", "Cs4", "Cdoc1", "Cdoc2", "W1", "W2", "Ca", "Cr", "Ccwd", "Cdic1", "Cdic2", "W3", "Cdic3", "Cdoc3", "PFT")
 initDF$PFT<-pfts_site
 
@@ -40,7 +48,7 @@ regsDF$PFT<-pfts_site
 
 #Fill in the initial conditions data.frame with generic pft-specific values prior to model spinup start
 for(y in 1:nrow(initDF)){
-  params<-as.numeric(PFTtable[,which(colnames(PFTtable)==initDF$PFT[y])])  #params for each pft
+  params<-as.numeric(PFTtable[,which(colnames(PFTtable)==initDF$PFT[y])])  #params for each pft. goes to pft[y] in the pft table, extracts table as pure list of numbers
   names(params)<-PFTtable$pName #name params
   if(initDF$PFT[y]=="EGBR"){
     initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60, 60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01, as.numeric(params[[41]]*.90), 0.0001, 10) #fill initial conditions
@@ -65,18 +73,19 @@ for(i in 1:nrow(initDF)){
     names(params)<-c(PFTtable$pName) #name params
 
     site_forcings$year<-substr(site_forcings$TIMESTAMP, 1,4) # add a year column
-
+    #site forcings makes unuique forcings every day of the year for x years
+    
     # needs to start on a january first for generating leaf on / leaf off days properly
     site_forcings$mon_day<-paste(substr(site_forcings$TIMESTAMP, 5,6), substr(site_forcings$TIMESTAMP, 7,8), sep="-")
     if(site_forcings$mon_day[1] != "01-01"){
-      site_forcings<-site_forcings[which(site_forcings$mon_day== "01-01")[1]:nrow(site_forcings), ]
+      site_forcings<-site_forcings[which(site_forcings$mon_day== "01-01")[1]:nrow(site_forcings), ]#ensuring we span from J1 to the end. J1 must be first
     }
 
     # create the leaf phenology from temperature (growing degree days determine when leaves pop up)
     site_forcings<-addLeaves(df=site_forcings, a=params[[57]] , k=params[[56]], b=params[[58]])
     site_forcings$runDay<-1:nrow(site_forcings) # time steps for the model runs
 
-    spin_times<-1:nrow(site_forcings) #list of timesteps in days; should match forcing data inputs
+    spin_times<-1:nrow(site_forcings) #list of time-steps in days; should match forcing data inputs
 
     length(which(is.na(site_forcings))) #make sure that there are no missing data (as NAs)
 
@@ -86,7 +95,7 @@ for(i in 1:nrow(initDF)){
            W2=initDF[i,10], Ca=initDF[i,11], Cr=initDF[i,12], Ccwd=initDF[i,13],
            Cdic1=initDF[i,14], Cdic2=initDF[i,15], W3=initDF[i,16], Cdic3=initDF[i,17], Cdoc3=initDF[i,18])
 
-    #define forcing approx functions
+    #define forcing approx functions #interpolate smoothly through time for ode
     PARapprox<<-approxfun(x=as.numeric(site_forcings$runDay), y = as.numeric(site_forcings$PAR_e))
     Papprox<<-approxfun(x =as.numeric(site_forcings$runDay), y = as.numeric(site_forcings$Precip))
     VPDapprox<<-approxfun(x=as.numeric(site_forcings$runDay), y = as.numeric(site_forcings$VPD_kPa))
@@ -117,9 +126,6 @@ for(i in 1:nrow(initDF)){
       regsDF[i,x]<-regMod$coefficients[[2]]
     }
 
-    if(nruns == 20){
-      incomplLog$compl[i]<-nruns
-    }
 
     if((((length(which(regsDF[i,1:(ncol(regsDF)-2)] > -0.01))==(ncol(regsDF)-2))) & (length(which(regsDF[i,1:(ncol(regsDF)-2)]< 0.01))==(ncol(regsDF)-2))) | nruns==20){
       break

@@ -1,5 +1,5 @@
 ####Terrestrial-Aquatic Model####
-#By: Ceara J. Talbot
+#By: Ceara J. Talbot, Nico's Copy
 #Usage: 
 
 #########################################################################################

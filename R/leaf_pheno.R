@@ -18,9 +18,9 @@
 #Growing degree day calculations
 #input is temps vector for a single year, ths is the temperature threshold
 gddCalc<-function(temps, ths, chill=FALSE){
-
+  
   outTemps<-c(ifelse(temps[1] > ths, temps[1], 0), rep(0, (length(temps)-1))) #setup the initial temps
-
+  
   if(chill==TRUE){ # to count chilling days
     for(i in 1:length(temps)){
       if(temps[i] < ths & temps[i] > 0){
