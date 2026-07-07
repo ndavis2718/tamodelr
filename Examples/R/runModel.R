@@ -32,36 +32,34 @@ PFTtable[which(PFTtable$pName=="Aa"), 2:8]<-Aa
 #1. Model spinup OR input own inital conditions if data exist for site.
 ##run equilibrium to get initial conditions | equilibrium means a linear regression is about 0 for each pool (things arent changing)
 #create a data frame that holds initial conditions for each pft
-initDF<-data.frame(matrix(ncol=19, nrow=length(pfts_site))) #initial conditions setup. 1 col for each item we track (types of carbon)
-colnames(initDF)<-c("Cw","Cl", "Cs1", "Cs2", "Cs3", "Cs4", "Cdoc1", "Cdoc2", "W1", "W2", "Ca", "Cr", "Ccwd", "Cdic1", "Cdic2", "W3", "Cdic3", "Cdoc3", "PFT")
+state_vars<-c("Cw","Cl", "Cs1", "Cs2", "Cs3", "Cs4", "Cdoc1", "Cdoc2", "W1", "W2", "Ca", "Cr", "Ccwd", "Cdic1", "Cdic2", "W3", "Cdic3", "Cdoc3", "Ci")
+
+initDF<-data.frame(matrix(ncol=length(state_vars)+1, nrow=length(pfts_site))) #initial conditions setup. 1 col for each item we track (types of carbon)
+colnames(initDF)<-c(state_vars, "PFT")
 initDF$PFT<-pfts_site
 
 #data.frame to store the initial conditions for dynamic simulations
-inits<-data.frame(matrix(ncol=19, nrow=length(pfts_site)))
-colnames(inits)<-c("Cw","Cl", "Cs1", "Cs2", "Cs3", "Cs4", "Cdoc1", "Cdoc2", "W1", "W2", "Ca", "Cr", "Ccwd", "Cdic1", "Cdic2", "W3", "Cdic3", "Cdoc3", "PFT")
-inits$PFT<-pfts_site
+inits<-initDF #make a copy of the inifDF data frame to store initial conditions from spinup
 
 #Store linear regressions that will be used to confirm equilibrium at the end of spinup
-regsDF<-data.frame(matrix(ncol=19, nrow=length(pfts_site)))
-colnames(regsDF)<-c("Cw","Cl", "Cs1", "Cs2", "Cs3", "Cs4", "Cdoc1", "Cdoc2", "W1", "W2", "Ca", "Cr", "Ccwd", "Cdic1", "Cdic2", "W3", "Cdic3", "Cdoc3", "PFT")
-regsDF$PFT<-pfts_site
+regsDF<-initDF #make a copy of the inifDF data frame to store regression coefficients
 
 #Fill in the initial conditions data.frame with generic pft-specific values prior to model spinup start
 for(y in 1:nrow(initDF)){
   params<-as.numeric(PFTtable[,which(colnames(PFTtable)==initDF$PFT[y])])  #params for each pft. goes to pft[y] in the pft table, extracts table as pure list of numbers
   names(params)<-PFTtable$pName #name params
   if(initDF$PFT[y]=="EGBR"){
-    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60, 60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01, as.numeric(params[[41]]*.90), 0.0001, 10) #fill initial conditions
+    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60, 60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01, as.numeric(params[[41]]*.90), 0.0001, 10, 200000000) #fill initial conditions
   } else if(initDF$PFT[y]=="EGNE"){
-    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.0001, 10) #fill initial conditions
+    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.0001, 10, 200000000) #fill initial conditions
   } else if(initDF$PFT[y]=="DEBR"){
-    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60, 60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10) #fill initial conditions
+    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60, 60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10, 200000000) #fill initial conditions
   } else if(initDF$PFT[y]=="DENE"){
-    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10) #fill initial conditions
+    initDF[y,1:(ncol(initDF)-1)]<-c(13000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 3000, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10, 200000000) #fill initial conditions
   } else if(initDF$PFT[y]=="SH"){
-    initDF[y,1:(ncol(initDF)-1)]<-c(10000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 2500, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10) #fill initial conditions
+    initDF[y,1:(ncol(initDF)-1)]<-c(10000, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 2500, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10, 200000000) #fill initial conditions
   } else if(initDF$PFT[y]=="GR" | initDF$PFT[y]=="CR"){
-    initDF[y,1:(ncol(initDF)-1)]<-c(0, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 500, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10) #fill initial conditions
+    initDF[y,1:(ncol(initDF)-1)]<-c(0, as.numeric(params[[55]]*params[[20]]*params[[21]]), 60,60, 300, 2000, 50, 30, as.numeric(params[[19]]*.90), as.numeric(params[[41]]*.90), 600000, 500, 50, 0.01, 0.01,  as.numeric(params[[41]]*.90), 0.01, 10, 200000000) #fill initial conditions
   }
 }
 
@@ -74,7 +72,7 @@ for(i in 1:nrow(initDF)){
 
     site_forcings$year<-substr(site_forcings$TIMESTAMP, 1,4) # add a year column
     #site forcings makes unuique forcings every day of the year for x years
-    
+
     # needs to start on a january first for generating leaf on / leaf off days properly
     site_forcings$mon_day<-paste(substr(site_forcings$TIMESTAMP, 5,6), substr(site_forcings$TIMESTAMP, 7,8), sep="-")
     if(site_forcings$mon_day[1] != "01-01"){
@@ -93,7 +91,8 @@ for(i in 1:nrow(initDF)){
     S0<<-c(Cw=initDF[i,1],Cl=initDF[i,2],Cs1=initDF[i,3],Cs2=initDF[i,4], Cs3=initDF[i,5],
            Cs4=initDF[i,6], Cdoc1=initDF[i,7], Cdoc2=initDF[i,8], W1=initDF[i,9],
            W2=initDF[i,10], Ca=initDF[i,11], Cr=initDF[i,12], Ccwd=initDF[i,13],
-           Cdic1=initDF[i,14], Cdic2=initDF[i,15], W3=initDF[i,16], Cdic3=initDF[i,17], Cdoc3=initDF[i,18])
+           Cdic1=initDF[i,14], Cdic2=initDF[i,15], W3=initDF[i,16], Cdic3=initDF[i,17],
+           Cdoc3=initDF[i,18], Ci = initDF[i,19])
 
     #define forcing approx functions #interpolate smoothly through time for ode
     PARapprox<<-approxfun(x=as.numeric(site_forcings$runDay), y = as.numeric(site_forcings$PAR_e))
@@ -133,12 +132,6 @@ for(i in 1:nrow(initDF)){
   }
 
   spinup$pft<-initDF$PFT[i] #label PFT
-  #save model spinup outputs
-  if(i==1){
-    spinupAll<-spinup
-  } else{
-    spinupAll<-rbind(spinupAll, spinup)
-  }
 
   #update the initial conditions for dynamic runs with the model outputs from the last day of spinup
   for(z in 1:(ncol(inits)-1)){
