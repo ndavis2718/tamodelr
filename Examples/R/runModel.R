@@ -13,18 +13,28 @@ forcings<-read.csv("Examples/Data/OSBS_neonForcings_ex.csv") # read in forcing d
   #there are a bunch of variables from this file that we don't need right now; let's keep only what we need
   site_forcings<-data.frame(cbind(TIMESTAMP=forcings$TIMESTAMP, TA_F=forcings$TA_F, forcings[,106:113]))
   PFTtable<-read.csv("Examples/Data/paramTable.csv")# read in parameter table
-pfts_site<-c("EGNE") #vector of plant functional types at OSBS neon site
-
+ #vector of plant functional types at OSBS neon site
+PFTtable$"EGNE1" <- PFTtable$"EGNE"#add new EGNE- Same PFT diff lake properties
+PFTtable$"EGNE2" <- PFTtable$"EGNE"
+pfts_site<-c("EGNE","EGNE1","EGNE2")
 
 #### we need to find and assign the lake-specific parameters for the SUGG neon site
 # Aa = surface area (m^2), Ac = catchment area (m^2), zbar = mean depth (m)
-zbar = 20.06
+zbar = 2.06
 Ac = 3.96 * 10^7
 Aa = 730000
 #the lake qualities are encoded in the plant types; every PFT has the same lake depth, SA, etc
 PFTtable[which(PFTtable$pName=="zbar"), 2:8]<-zbar
 PFTtable[which(PFTtable$pName=="Ac"), 2:8]<-Ac
 PFTtable[which(PFTtable$pName=="Aa"), 2:8]<-Aa
+#where the row of col pNmae = "zbar" and where colnames == EGNE1)
+PFTtable[which(PFTtable$pName == "zbar"), which(colnames(PFTtable) == "EGNE1")] <- zbar*2
+PFTtable[which(PFTtable$pName == "Ac"), which(colnames(PFTtable) == "EGNE1")] <-  Ac*2
+PFTtable[which(PFTtable$pName == "Aa"), which(colnames(PFTtable) == "EGNE1")] <- Aa*2
+#where the row of col pNmae = "zbar" and where colnames == EGNE2)
+PFTtable[which(PFTtable$pName == "zbar"), which(colnames(PFTtable) == "EGNE2")] <- zbar*1/2
+PFTtable[which(PFTtable$pName == "Ac"), which(colnames(PFTtable) == "EGNE2")] <-  Ac *1/2
+PFTtable[which(PFTtable$pName == "Aa"), which(colnames(PFTtable) == "EGNE2")] <- Aa*1/2
 
 
 ### STOP: check forcing data to make sure that there are no negative values (negative temperatures are ok but everything else should be positive)
@@ -32,19 +42,23 @@ PFTtable[which(PFTtable$pName=="Aa"), 2:8]<-Aa
 #1. Model spinup OR input own inital conditions if data exist for site.
 ##run equilibrium to get initial conditions | equilibrium means a linear regression is about 0 for each pool (things arent changing)
 #create a data frame that holds initial conditions for each pft
-state_vars<-c("Cw","Cl", "Cs1", "Cs2", "Cs3", "Cs4", "Cdoc1", "Cdoc2", "W1", "W2", "Ca", "Cr", "Ccwd", "Cdic1", "Cdic2", "W3", "Cdic3", "Cdoc3", "Ci")
-
-initDF<-data.frame(matrix(ncol=length(state_vars)+1, nrow=length(pfts_site))) #initial conditions setup. 1 col for each item we track (types of carbon)
-colnames(initDF)<-c(state_vars, "PFT")
+colnames <-c("Cw","Cl", "Cs1", "Cs2", "Cs3", "Cs4", "Cdoc1", "Cdoc2", "W1", "W2", "Ca", "Cr", "Ccwd", "Cdic1", "Cdic2", "W3", "Cdic3", "Cdoc3", "Calat", "PFT")
+initDF<-data.frame(matrix(ncol=length(colnames), nrow=length(pfts_site))) #initial conditions setup. 1 col for each item we track (types of carbon)
+colnames(initDF)<-colnames
 initDF$PFT<-pfts_site
 
 #data.frame to store the initial conditions for dynamic simulations
-inits<-initDF #make a copy of the inifDF data frame to store initial conditions from spinup
+inits<-data.frame(matrix(ncol=length(colnames), nrow=length(pfts_site)))
+colnames(inits)<-colnames
+inits$PFT<-pfts_site
 
 #Store linear regressions that will be used to confirm equilibrium at the end of spinup
-regsDF<-initDF #make a copy of the inifDF data frame to store regression coefficients
+regsDF<-data.frame(matrix(ncol=length(colnames), nrow=length(pfts_site)))
+colnames(regsDF)<-colnames
+regsDF$PFT<-pfts_site
 
 #Fill in the initial conditions data.frame with generic pft-specific values prior to model spinup start
+#in PP version ive mad calat init guess 10 for each PFT
 for(y in 1:nrow(initDF)){
   params<-as.numeric(PFTtable[,which(colnames(PFTtable)==initDF$PFT[y])])  #params for each pft. goes to pft[y] in the pft table, extracts table as pure list of numbers
   names(params)<-PFTtable$pName #name params
@@ -109,8 +123,8 @@ for(i in 1:nrow(initDF)){
     grow_approx<<-approxfun(x=as.numeric(site_forcings$runDay), y=as.numeric(site_forcings$grow))
     green_approx<<-approxfun(x=as.numeric(site_forcings$runDay), y=as.numeric(site_forcings$greenup))
 
-    spinup=ode(y=S0,times=spin_times,func=tamStep, parms=params, method="euler") #run the model!
-    spinup=data.frame(spinup)
+    spinup=ode(y=S0,times=spin_times,func=PPStep, parms=params, method="euler") #run the model!
+    spinup=data.frame(spinup) 
 
     nruns<-nruns+1 #continue keeping track of the number of runs until equilibrium is achieved..
 
@@ -125,16 +139,17 @@ for(i in 1:nrow(initDF)){
       regsDF[i,x]<-regMod$coefficients[[2]]
     }
 
-
-    if((((length(which(regsDF[i,1:(ncol(regsDF)-2)] > -0.01))==(ncol(regsDF)-2))) & (length(which(regsDF[i,1:(ncol(regsDF)-2)]< 0.01))==(ncol(regsDF)-2))) | nruns==20){
+    tol = .05
+    if((((length(which(regsDF[i,1:(ncol(regsDF)-2)] > -1*tol))==(ncol(regsDF)-2))) & (length(which(regsDF[i,1:(ncol(regsDF)-2)]< tol))==(ncol(regsDF)-2))) | nruns==20){
       break
     } #if the slope of linear regressions is close enough to 0, stop repeating the loop
   }
 
   spinup$pft<-initDF$PFT[i] #label PFT
 
-  #update the initial conditions for dynamic runs with the model outputs from the last day of spinup
-  for(z in 1:(ncol(inits)-1)){
+  #update the initial conditions for dynamic runs with the model outputs from the last day of spin-up
+  #we can ask: how do these final initial conditions change when we adjust values about the lake? 
+  for(z in 1:(ncol(inits)-1)){ #i = PFT =row
     inits[i,z]<-spinup[nrow(spinup),which(colnames(spinup)==colnames(inits)[z])]
   }
 }#end model loop
